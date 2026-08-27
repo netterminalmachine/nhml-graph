@@ -1,29 +1,29 @@
 # expect help page if ran with no commands
-exec nn:mg
+exec nhmlg:test
 cmp stdout usage.txt
 ! stderr .
 
 # expect failure if ran with unknown commands
-! exec nn:mg totalfoobar
+! exec nhmlg:test totalfoobar
 stderr 'No help topic'
 
 # help should work with --help
-exec nn:mg --help
+exec nhmlg:test --help
 cmp stdout usage.txt
 ! stderr .
 
 # help should work with 'h'
-exec nn:mg h
+exec nhmlg:test h
 cmp stdout usage.txt
 ! stderr .
 
 
 -- usage.txt --
 NAME:
-   nnmg - Nano-migrate (nnmg) is a tiny, env-aware, forward-only, postgres migrations manager.
+   nhmlg - nhml-graph (nhmlg) is a tiny, env-aware, forward-only, postgres migrations manager.
 
 USAGE:
-   nnmg [global options] command [command options] [arguments...]
+   nhmlg [global options] command [command options] [arguments...]
 
 COMMANDS:
    init, i     Initialise the migrations table

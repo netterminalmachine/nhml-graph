@@ -1,6 +1,6 @@
 # Contributing
 
-Welcome to the **nano-migrate** project!
+Welcome to the **nhml-graph** project!
 
 ### Pre-requisites
 
@@ -18,7 +18,7 @@ Here are the list of commands you can use in your local sandbox:
 
 | command        | description                                                                                            |
 | -------------- | ------------------------------------------------------------------------------------------------------ |
-| `make setup`   | Set up your local sandbox for working on nano-migrate. Probably only need to do this once!             |
+| `make setup`   | Set up your local sandbox for working on nhml-graph. Probably only need to do this once!             |
 | `make pgup`    | Start a containerized postgres instance (it will run on the default `:5432` port (but see note below). |
 | `make pgdown`  | Bring down the database                                                                                |
 | `make test`    | tests the application and generates a test report                                                      |
@@ -36,15 +36,15 @@ Here are the list of commands you can use in your local sandbox:
 It's handy to have an alias to save on keystrokes, so you might want run the following:
 
 ```sh
-alias nnmg='./build/nnmg'
+alias nhmlg='./build/nhmlg'
 ```
 
 :point_up: unfortunately you have to run this command interactively; that's just how bash works. I can't automate it for you.
-After this, you can just type `nnmg` whenever you need to invoke the app. You can also check out the main [readme](./README.md).
+After this, you can just type `nhmlg` whenever you need to invoke the app. You can also check out the main [readme](./README.md).
 
 # Contributing/Submitting changes
 
-Please check [the list of issues](https://github.com/netterminalmachine/nano-migrate/issues) to see if you can help with something!
+Please check [the list of issues](https://github.com/netterminalmachine/nhml-graph/issues) to see if you can help with something!
 Alternatively, you can **create a new issue** related to what you want to work on. Then:
 
 - Check out a new branch with the name of the issue number. eg:

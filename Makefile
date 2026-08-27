@@ -23,7 +23,8 @@ pgdown:
 
 # building and testing
 build:
-		go build -o ./build/nnmg$(TAG) nnmg.go
+		mkdir -p ./build
+		go build -o ./build/nhmlg$(TAG) ./cmd/nhmlg
 test:
 		make clean
 		make build
@@ -39,10 +40,10 @@ testcov:
 
 # see list of migrations
 ls:
-		ls -al $(HOME)/nn_datavol/migrations
+		ls -al $(HOME)/nhmlg_datavol/migrations
 
 
 clean:
 		rm ./build/*
 uninstall:
-		rm $(GOPATH)/bin/nano-migrate
+		rm $(GOPATH)/bin/nhml-graph

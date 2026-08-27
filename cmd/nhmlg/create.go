@@ -1,4 +1,4 @@
-package nnmg
+package main
 
 import (
 	"errors"
@@ -9,19 +9,19 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/urfave/cli/v2"
 
-	"github.com/netterminalmachine/nano-migrate/internal/core"
-	"github.com/netterminalmachine/nano-migrate/internal/helpers"
+	"github.com/netterminalmachine/nhml-graph/internal/core"
+	"github.com/netterminalmachine/nhml-graph/internal/helpers"
 )
 
 func CreateNewMigration(ctx *cli.Context) error {
 	if ctx == nil {
-		return errors.New("Parent context is missing.")
+		return errors.New("parent context is missing")
 	}
 
 	config := helpers.LoadConfig()
 
 	if ctx.Args().Len() < 3 {
-		return errors.New("You must provide a name for your migration, which must be at least three words. E.g. 'create foo table'.")
+		return errors.New("you must provide a name for your migration, which must be at least three words. e.g. 'add foo table'")
 	}
 
 	nameArgs := strings.Join(ctx.Args().Slice(), "-")

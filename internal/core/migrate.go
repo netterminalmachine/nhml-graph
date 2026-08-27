@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/netterminalmachine/nano-migrate/internal/helpers"
+	"github.com/netterminalmachine/nhml-graph/internal/helpers"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -220,7 +220,7 @@ func CreateMigration(
 	pool *pgxpool.Pool,
 	migName string,
 	migType string,
-) {
+) string {
 	ch := make(chan int32)
 
 	go getLatestCommittedMigrationId(ctx, pool, ch)
@@ -228,23 +228,13 @@ func CreateMigration(
 
 	nextId := int(lastCommittedId) + 1
 
-	const allowed = "abcdefghijklmnopqrstuvwxyz0123456789-_"
-	runes := []rune{}
-
-	// toss any funky runes
-	for _, c := range migName {
-		nextChar := strings.ToLower(string(c))
-		if strings.Contains(allowed, nextChar) {
-			runes = append(runes[:], c)
-		}
-	}
+	cleanStr := helpers.SanitizeMigrationName(migName)
 
 	// identify regular sql migrations vs metadata migrations controlled by other subsystems
 	ext := "sql"
 	if migType != "core" {
 		ext = "json"
 	}
-	cleanStr := strings.Join(strings.Split(string(runes), " "), "-")
 	targetName := fmt.Sprintf("%04d-%s.%s", nextId, cleanStr, ext)
 	targetPath := filepath.Join(config.MigrationsDir, targetName)
 
@@ -258,5 +248,6 @@ func CreateMigration(
 	if eWrite != nil {
 		log.Fatalf("❌ Could not write to file! %v", eWrite)
 	}
-	fmt.Printf("✨ New migration file ready: %s\n", targetName)
+	fmt.Printf("✨ New migration file ready: %s\n", targetPath)
+	return targetPath
 }

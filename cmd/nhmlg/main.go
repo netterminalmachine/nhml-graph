@@ -1,18 +1,21 @@
-package nnmg
+package main
 
 import (
-	"os"
-
 	"log"
+	"os"
 
 	"github.com/urfave/cli/v2"
 )
 
-// This is an entrypoint / wrapper for testability. ENSURE TO ALWAYS RETURN A VALUE FOR os.Exit() !!
+func main() {
+	os.Exit(Main())
+}
+
+// Main is the CLI entrypoint, extracted so tests can invoke it without os.Exit.
 func Main() int {
 	app := &cli.App{
-		Name:  "nnmg",
-		Usage: "Nano-migrate (nnmg) is a tiny, env-aware, forward-only, postgres migrations manager.",
+		Name:  "nhmlg",
+		Usage: "nhml-graph (nhmlg) is a tiny, env-aware, forward-only, postgres migrations manager.",
 		Commands: []*cli.Command{
 			{
 				Name:    "init",

@@ -4,19 +4,18 @@ import (
 	"os"
 	"testing"
 
-	"github.com/netterminalmachine/nano-migrate/cmd/nnmg"
 	"github.com/rogpeppe/go-internal/testscript"
 )
 
-// build an executable just for testing. Named 'nn:mg' to minimize any possible collission with aliases in user space.
+// build an executable just for testing. Named 'nhmlg:test' to minimize any possible collission with aliases in user space.
 func TestMain(m *testing.M) {
 	os.Exit(testscript.RunMain(m, map[string]func() int{
-		"nn:mg": nnmg.Main,
+		"nhmlg:test": Main,
 	}))
 }
 
 func TestCommands(t *testing.T) {
 	testscript.Run(t, testscript.Params{
-		Dir: "testdata/scripts",
+		Dir: "testdata",
 	})
 }

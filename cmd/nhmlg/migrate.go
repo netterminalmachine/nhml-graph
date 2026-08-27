@@ -1,4 +1,4 @@
-package nnmg
+package main
 
 import (
 	"errors"
@@ -8,13 +8,13 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/urfave/cli/v2"
 
-	"github.com/netterminalmachine/nano-migrate/internal/core"
-	"github.com/netterminalmachine/nano-migrate/internal/helpers"
+	"github.com/netterminalmachine/nhml-graph/internal/core"
+	"github.com/netterminalmachine/nhml-graph/internal/helpers"
 )
 
 func ApplyMigrations(ctx *cli.Context) error {
 	if ctx == nil {
-		return errors.New("Parent context is missing.")
+		return errors.New("parent context is missing")
 	}
 
 	config := helpers.LoadConfig()

@@ -1,4 +1,4 @@
-package nnmg
+package main
 
 import (
 	"errors"
@@ -7,12 +7,12 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/urfave/cli/v2"
 
-	"github.com/netterminalmachine/nano-migrate/internal/helpers"
+	"github.com/netterminalmachine/nhml-graph/internal/helpers"
 )
 
 func InitialiseMigrations(ctx *cli.Context) error {
 	if ctx == nil {
-		return errors.New("Parent context is missing.")
+		return errors.New("parent context is missing")
 	}
 
 	config := helpers.LoadConfig()
@@ -24,7 +24,13 @@ func InitialiseMigrations(ctx *cli.Context) error {
 		return err
 	}
 
-	defer conn.Close(ctx.Context)
+	defer func() {
+		ctxCloseErr := conn.Close(ctx.Context)
+		if ctxCloseErr != nil {
+			fmt.Printf("context close error: %v\n", ctxCloseErr)
+		}
+	}()
+
 	statusText, errTx := conn.Exec(ctx.Context, sqlStr)
 	if errTx != nil {
 		fmt.Printf("SQL transaction error: %v\nStatus text:%s\n", errTx, statusText)
