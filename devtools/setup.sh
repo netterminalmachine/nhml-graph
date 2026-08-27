@@ -38,8 +38,10 @@ if [ ! -f ./.env ]; then
   echo "🗲  creating standard '.env' file for a quick start..."
   cat << EOF > ./.env
 PG_PORT=5432
+PG_USER=postgres
+PG_PASSWORD=localpass
+PG_DB=localdb
 DB_DATAPATH=$HOME/nhmlg_datavol/nhmlg
-PG_URL=postgres://postgres:localpass@localhost:5432/localdb
 MIGPATH=$HOME/nhmlg_datavol/migrations
 EOF
 else
@@ -56,8 +58,13 @@ if [ "$HAVE_DOCKER" -eq 1 ]; then
   echo "🗲  starting local postgres..."
   make pgup
 else
-  echo "  ⚠️  Skipping local postgres. Start docker and run 'make pgup', or point PG_URL in .env at your own instance."
+  echo "  ⚠️  Skipping local postgres. Review the .env file, tweak as needed and then run 'make pgup'."
 fi
 
 echo "✨  Done! Binary is at ./build/nhmlg"
 echo "    Try: ./build/nhmlg --help"
+echo "    (psst... that gets tiring to type; create an alias! E.g. try the following command 👇)"
+echo -e "\033[33malias nhmlg='./build/nhmlg'\033[0m"
+echo "    Now you can just type 'nhmlg' to run the binary!"
+echo -e "💡You can also use the \033[33mmake connect\033[0m command to browse the db!"
+

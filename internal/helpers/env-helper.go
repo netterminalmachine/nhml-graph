@@ -47,7 +47,7 @@ func LoadConfig() *Config {
 		}
 	}
 
-	pgUrl := getEnv("PG_URL")
+	pgUrl := fmt.Sprintf("postgres://%s:%s@localhost:%s/%s", getEnv("PG_USER"), getEnv("PG_PASSWORD"), getEnv("PG_PORT"), getEnv("PG_DB"))
 	migDir := getEnv("MIGPATH")
 
 	// to do: delegate to substitutions helper

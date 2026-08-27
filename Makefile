@@ -1,10 +1,14 @@
+ifneq (,$(wildcard ./.env)) # guard against hard stop on missing .env file (e.g. on bootstrap)
+include .env
+export
+endif
+
 # Use `make V=1` to print commands.
 $(V).SILENT:
 
 .PHONY: build
 
 # invoke make with VERSION=n.n.n
-# WARN: any vars here can be overridden by same-named env vars. DO NOT USE THESE FOR LOCAL DEV.
 TAG := -$(VERSION)
 ifeq ($(VERSION),)
 TAG :=
@@ -13,13 +17,6 @@ endif
 setup:
 		chmod +x ./devtools/setup.sh
 		./devtools/setup.sh
-
-# Run a local test pg instance. Assumes you have docker and docker daemon is running
-pgup:
-		docker compose --env-file ./.env -f ./devtools/compose.yml up -d
-pgdown:
-		docker compose --env-file ./.env -f ./devtools/compose.yml down
-
 
 # building and testing
 build:
@@ -37,6 +34,16 @@ testcov:
 		echo "\n=== 📜 TEST COVERAGE REPORT ===\n"
 		go tool cover -func=coverage.out
 
+# Run a local test pg instance. Assumes you have docker and docker daemon is running
+pgup:
+		docker compose --env-file ./.env -f ./devtools/compose.yml up -d
+pgdown:
+		docker compose --env-file ./.env -f ./devtools/compose.yml down
+
+# connect to db / browse data
+connect:
+		docker compose --env-file ./.env -f ./devtools/compose.yml exec -it pg \
+		psql -U $(PG_USER) -d $(PG_DB)
 
 # see list of migrations
 ls:
