@@ -1,43 +1,42 @@
 package main
 
 import (
-	"errors"
-	"fmt"
+	"context"
+	"log/slog"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 
+	"github.com/netterminalmachine/nhml-graph/internal/core"
 	"github.com/netterminalmachine/nhml-graph/internal/helpers"
 )
 
-func InitialiseMigrations(ctx *cli.Context) error {
-	if ctx == nil {
-		return errors.New("parent context is missing")
+func InitialiseMigrations(ctx context.Context, _ *cli.Command) error {
+	config, err := helpers.LoadConfig()
+	if err != nil {
+		return err
 	}
+	sqlStr := core.MigrationsTableSQL
 
-	config := helpers.LoadConfig()
-	sqlStr := "create table if not exists migrations (id int primary key, name text not null, mig_type text not null, hash text not null);"
-
-	conn, err := pgx.Connect(ctx.Context, config.PgUrl)
-
+	conn, err := pgx.Connect(ctx, config.PgUrl)
 	if err != nil {
 		return err
 	}
 
 	defer func() {
-		ctxCloseErr := conn.Close(ctx.Context)
-		if ctxCloseErr != nil {
-			fmt.Printf("context close error: %v\n", ctxCloseErr)
+		closeErr := conn.Close(ctx)
+		if closeErr != nil {
+			slog.Error("db connection close error", "error", closeErr)
 		}
 	}()
 
-	statusText, errTx := conn.Exec(ctx.Context, sqlStr)
-	if errTx != nil {
-		fmt.Printf("SQL transaction error: %v\nStatus text:%s\n", errTx, statusText)
-		return errTx
+	statusText, err := conn.Exec(ctx, sqlStr)
+	if err != nil {
+		slog.Error("SQL execution error", "error", err, "status text", statusText)
+		return err
 	}
 
-	fmt.Println("Migrations table ready.")
+	slog.Info("Migrations table ready.")
 
 	return nil
 }

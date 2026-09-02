@@ -40,7 +40,8 @@ if [ ! -f ./.env ]; then
 PG_PORT=5432
 PG_USER=postgres
 PG_PASSWORD=localpass
-PG_DB=localdb
+PG_DB=ngraph
+PG_DB_TEST=ngraph_test
 DB_DATAPATH=$HOME/nhmlg_datavol/nhmlg
 MIGPATH=$HOME/nhmlg_datavol/migrations
 EOF

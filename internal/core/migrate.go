@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/fs"
 	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -21,16 +22,15 @@ type Migration struct {
 	Id       int
 	Filepath string
 	Name     string
-	Type     string
 	Hash     string
 }
 
-func getFileContents(migrationFile string) string {
+func getFileContents(migrationFile string) (string, error) {
 	byteArr, errFile := os.ReadFile(migrationFile)
 	if errFile != nil {
-		log.Fatal("Failed to read file!")
+		return "", errFile
 	}
-	return string(byteArr)
+	return string(byteArr), nil
 }
 
 func allFiles(filesys fs.FS) (files []string, err error) {
@@ -50,21 +50,21 @@ func allFiles(filesys fs.FS) (files []string, err error) {
 	return files, nil
 }
 
-func makeHash(str string) string {
+func makeHash(str string) (string, error) {
 	byteArr := []byte(str)
 
 	// could use bcrypt or similar for beefier sec but we are not fussed atm:
 	hasher := sha1.New()
 	_, hashErr := hasher.Write(byteArr)
 	if hashErr != nil {
-		log.Fatal("can't hash the migration!")
+		return "", hashErr
 	}
 
 	// c/shouldve stored the integer hash, but for some reason I'd fancied storing the hex representation of the checksum and now the tbl is built that way, so:
-	return fmt.Sprintf("%x", hasher.Sum(nil))
+	return fmt.Sprintf("%x", hasher.Sum(nil)), nil
 }
 
-func getPendingMigrations(files []string, lastCommittedId int32) []Migration {
+func getPendingMigrations(files []string, lastCommittedId int32) ([]Migration, error) {
 	var latestId = int(lastCommittedId)
 	var migs []Migration
 
@@ -74,61 +74,53 @@ func getPendingMigrations(files []string, lastCommittedId int32) []Migration {
 	for _, file := range files {
 		len := len(file)
 		if len < lenIdentifier {
-			log.Fatalf("Encountered file [%s] with bad name - cannot extract unique identifier for migration. Bailing.", file)
+			return nil, fmt.Errorf("cannot extract unique identifier from file [%s] with bad name", file)
 		}
-		id, _ := strconv.Atoi(file[0:lenIdentifier])
+		id, errAtoi := strconv.Atoi(file[0:lenIdentifier])
+		if errAtoi != nil {
+			return nil, fmt.Errorf("cannot convert file prefix to integer: %w", errAtoi)
+		}
 
 		if id > latestId {
 			_, filename := filepath.Split(file)
 			migName := strings.Split(filename, ".")
-			migType := "core"
-			if strings.EqualFold(filepath.Ext(filename), ".json") {
-				migType = "authz"
-			}
-
 			migs = append(migs, Migration{
 				Id:       id,
 				Filepath: file,
 				Name:     migName[0][5:],
-				Type:     migType,
 			})
 		}
 	}
 
-	return migs
+	return migs, nil
 }
 
-func sqlForMigrationsRecord(mig Migration) string {
+func sqlForMigrationsRecord(mig Migration) (string, error) {
 	if mig.Id == 0 || helpers.IsBlank(mig.Name) || helpers.IsBlank(mig.Hash) {
-		log.Fatalf("Need valid id, name and hash for migration!")
+		slog.Error("invalid values",
+			slog.Int("id", mig.Id),
+			slog.String("name", mig.Name),
+			slog.String("hash", mig.Hash),
+		)
+		return "", fmt.Errorf("need valid id, name and hash for migration")
 	}
 
-	return fmt.Sprintf("insert into migrations(id, name, mig_type, hash) values (%d, '%s', '%s', '%s');", mig.Id, mig.Name, mig.Type, mig.Hash)
+	sqlstr := fmt.Sprintf(
+		"insert into migrations(id, name, hash) values (%d, '%s', '%s');",
+		mig.Id, mig.Name, mig.Hash,
+	)
+
+	return sqlstr, nil
 }
 
-func runInTransaction(ctx context.Context, tx pgx.Tx, sqlStrings []string, ch chan bool) {
-	allOK := true
-
-	for _, sql := range sqlStrings {
-		_, err := tx.Exec(ctx, sql)
-		if err != nil {
-			fmt.Printf("SQL transaction error: %v\n", err)
-			allOK = false
-			break
-		}
-	}
-
-	ch <- allOK
-}
-
-func getLatestCommittedMigrationId(ctx context.Context, pool *pgxpool.Pool, ch chan int32) {
+func getLatestCommittedMigrationId(ctx context.Context, pool *pgxpool.Pool) (int32, error) {
 	var id int32
 	var name string
 	var hash string
 
 	rows, err := pool.Query(ctx, "select id, name, hash from public.migrations order by id desc limit 1")
 	if err != nil {
-		log.Fatalf("SQL query error: %v\n", err)
+		return -1, fmt.Errorf("SQL query error: %w", err)
 	}
 
 	defer rows.Close()
@@ -136,82 +128,74 @@ func getLatestCommittedMigrationId(ctx context.Context, pool *pgxpool.Pool, ch c
 	if rows.Next() {
 		eScan := rows.Scan(&id, &name, &hash)
 		if eScan != nil {
-			log.Fatalf("Could not read returned rows! %v\n", err)
+			return -1, fmt.Errorf("could not read returned rows: %w", err)
 		}
-		fmt.Printf("🔒 Last migration: [%d][%s][%s]\n", id, name, hash)
-		ch <- id
-		return
+		slog.Info("last migration",
+			slog.Int("id", int(id)),
+			slog.String("name", name),
+			slog.String("hash", hash),
+		)
+		return id, nil
 	}
 
-	ch <- 0
+	return 0, nil
 }
 
-func RunMigration(ctx context.Context, config *helpers.Config, pool *pgxpool.Pool) {
+func RunMigrations(ctx context.Context, config *helpers.Config, pool *pgxpool.Pool) error {
 	fsys := os.DirFS(config.MigrationsDir)
 	files, errFindAllFiles := allFiles(fsys)
 	if errFindAllFiles != nil {
-		log.Fatal("can't list migration files!")
+		return fmt.Errorf("can't list migration files: %w", errFindAllFiles)
 	}
-
-	ch := make(chan int32)
-	chmig := make(chan bool)
 
 	// prepare for migrations
-	go getLatestCommittedMigrationId(ctx, pool, ch)
-	lastCommittedId := <-ch
-	migs := getPendingMigrations(files, lastCommittedId)
-
-	var ok bool
-	var fingerprint string
-	for _, mig := range migs {
-		tx, _ := pool.Begin(ctx)
-		content := getFileContents(fmt.Sprintf("%s/%s", config.MigrationsDir, mig.Filepath))
-		var queries []string
-
-		if mig.Type == "core" {
-			sqlStr := helpers.HydrateSQLTemplate(content, *config)
-			mig.Hash = makeHash(sqlStr)
-			queries = append(queries, sqlStr)
-		} else {
-			// mig.Type authz
-			mig.Hash = makeHash(content)
-		}
-
-		sqlHashStore := sqlForMigrationsRecord(mig)
-		queries = append(queries, sqlHashStore)
-
-		fingerprint = fmt.Sprintf("Migration for [%d][%s][%s]", mig.Id, mig.Name, mig.Hash)
-
-		if mig.Type == "core" {
-			go runInTransaction(ctx, tx, queries, chmig)
-			ok = <-chmig
-		} else {
-			fmt.Println("Migrating metadata is not supported yet.")
-		}
-
-		if ok {
-			fmt.Printf("✅ Committing: %s\n", fingerprint)
-			eTrxn := tx.Commit(ctx)
-			if eTrxn != nil {
-				log.Panicln("❌Dagnammit... the commit transaction failed!! 😫")
-				ok = false
-			}
-		} else {
-			fmt.Printf("❌ Failed - Rolling Back: %s\n", fingerprint)
-			eTrxn := tx.Rollback(ctx)
-			if eTrxn != nil {
-				log.Panicln("💣Uhm... so... the rollback ALSO failed. OMG. 💀")
-			}
-			break //stop processing
-		}
+	lastCommittedId, err := getLatestCommittedMigrationId(ctx, pool)
+	if err != nil {
+		return err
+	}
+	migs, err := getPendingMigrations(files, lastCommittedId)
+	if err != nil {
+		return err
 	}
 
-	if !ok {
-		if len(migs) == 0 {
-			log.Println("No migrations to run.")
-		}
-		log.Fatalf("Stopping...")
+	if len(migs) == 0 {
+		log.Println("No migrations to run.")
+		return nil
 	}
+
+	err = asTransactionWithAutoRollback(ctx, pool, func(tx pgx.Tx) error {
+		for _, mig := range migs {
+			content, err := getFileContents(fmt.Sprintf("%s/%s", config.MigrationsDir, mig.Filepath))
+			if err != nil {
+				return err
+			}
+			var queries []string
+
+			mig.Hash, err = makeHash(content)
+			if err != nil {
+				return err
+			}
+			queries = append(queries, content)
+
+			sqlHashStore, err := sqlForMigrationsRecord(mig)
+			if err != nil {
+				return err
+			}
+			queries = append(queries, sqlHashStore)
+
+			fingerprint := fmt.Sprintf("Migration for [%d][%s][%s]", mig.Id, mig.Name, mig.Hash)
+
+			err = runSingleMigration(ctx, tx, queries)
+			if err != nil {
+				return err
+			}
+			slog.Info("✅ migration ok", slog.String("fingerprint", fingerprint))
+		}
+
+		return nil
+	})
+
+	return err
 }
 
 func CreateMigration(
@@ -219,35 +203,31 @@ func CreateMigration(
 	config *helpers.Config,
 	pool *pgxpool.Pool,
 	migName string,
-	migType string,
-) string {
-	ch := make(chan int32)
-
-	go getLatestCommittedMigrationId(ctx, pool, ch)
-	lastCommittedId := <-ch
+) (string, error) {
+	lastCommittedId, err := getLatestCommittedMigrationId(ctx, pool)
+	if err != nil {
+		slog.Error("error getting latest committed migration id", "error", err)
+		return "", err
+	}
 
 	nextId := int(lastCommittedId) + 1
-
 	cleanStr := helpers.SanitizeMigrationName(migName)
 
-	// identify regular sql migrations vs metadata migrations controlled by other subsystems
-	ext := "sql"
-	if migType != "core" {
-		ext = "json"
-	}
-	targetName := fmt.Sprintf("%04d-%s.%s", nextId, cleanStr, ext)
+	targetName := fmt.Sprintf("%04d-%s.sql", nextId, cleanStr)
 	targetPath := filepath.Join(config.MigrationsDir, targetName)
 
-	p, e := filepath.Abs(targetPath)
-	if e != nil {
-		log.Fatalf("❌ Could not determine absolute file path! %v", e)
+	path, err := filepath.Abs(targetPath)
+	if err != nil {
+		slog.Error("❌ Could not determine absolute file path", "error", err, "path", targetPath)
+		return "", err
 	}
 
 	emptyBytArray := []byte("")
-	eWrite := os.WriteFile(p, emptyBytArray, 0644)
-	if eWrite != nil {
-		log.Fatalf("❌ Could not write to file! %v", eWrite)
+	err = os.WriteFile(path, emptyBytArray, 0644)
+	if err != nil {
+		slog.Error("❌ Could not write to file", "error", err, "path", targetPath)
+		return "", err
 	}
-	fmt.Printf("✨ New migration file ready: %s\n", targetPath)
-	return targetPath
+	slog.Info("✨ New migration file ready", slog.String("path", targetPath))
+	return targetPath, nil
 }

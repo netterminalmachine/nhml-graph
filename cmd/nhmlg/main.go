@@ -1,10 +1,11 @@
 package main
 
 import (
-	"log"
+	"context"
+	"log/slog"
 	"os"
 
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 )
 
 func main() {
@@ -13,7 +14,15 @@ func main() {
 
 // Main is the CLI entrypoint, extracted so tests can invoke it without os.Exit.
 func Main() int {
-	app := &cli.App{
+	// set up logging
+	opts := &slog.HandlerOptions{
+		Level:     slog.LevelDebug, // Set minimum log level
+		AddSource: true,            // Includes file name and line number
+	}
+	l := slog.New(slog.NewTextHandler(os.Stdout, opts))
+	slog.SetDefault(l)
+
+	cmd := &cli.Command{
 		Name:  "nhmlg",
 		Usage: "nhml-graph (nhmlg) is a tiny, env-aware, forward-only, postgres migrations manager.",
 		Commands: []*cli.Command{
@@ -33,13 +42,13 @@ func Main() int {
 				Name:    "migrate",
 				Aliases: []string{"m"},
 				Usage:   "Apply all pending (un-applied) migrations",
-				Action:  ApplyMigrations,
+				Action:  MigrateAll,
 			},
 		},
 	}
 
-	if err := app.Run(os.Args); err != nil {
-		log.Println(err)
+	if err := cmd.Run(context.Background(), os.Args); err != nil {
+		slog.Error("error running app", "error", err)
 		return 1
 	}
 

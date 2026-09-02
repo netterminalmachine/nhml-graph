@@ -29,7 +29,7 @@ Here are the list of commands you can use in your local sandbox:
 :pencil: **Notes**:
 
 - If you already have a db on :5432, you can manually edit your generated `.env` file and change all refs from **5432** to some other unused port number.
-- The postgres db is `localdb` by default, for simplicity, and the user name and password are just `postgres` and `localpass`. It doesn't matter as this is just your local, fairly throwawawy, postgres instance. You can change these values by altering the `.env` if you _really_ need to.
+- The postgres db is `ngraph` by default, for simplicity, and the user name and password are just `postgres` and `localpass`. It doesn't matter as this is just your local, fairly throwawawy, postgres instance. You can change these values by altering the `.env` if you _really_ need to.
 
 ## Exercising the app
 

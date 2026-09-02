@@ -23,7 +23,7 @@ NAME:
    nhmlg - nhml-graph (nhmlg) is a tiny, env-aware, forward-only, postgres migrations manager.
 
 USAGE:
-   nhmlg [global options] command [command options] [arguments...]
+   nhmlg [global options] [command [command options]]
 
 COMMANDS:
    init, i     Initialise the migrations table

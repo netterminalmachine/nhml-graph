@@ -2,9 +2,10 @@ package helpers
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
+	"net/url"
 	"os"
-	"strings"
+	"path/filepath"
 
 	"github.com/joho/godotenv"
 )
@@ -15,65 +16,101 @@ type Config struct {
 	MainSchema    string
 }
 
-func getEnvWithDefaultAndBlankableFlag(key string, defaultValue string, canBeBlank bool) string {
+type EnvOptions struct {
+	UseTestDb bool
+}
+
+type Option func(o *EnvOptions)
+
+var defaultEnvOptions = EnvOptions{
+	UseTestDb: false,
+}
+
+func WithTestDB() Option {
+	return func(o *EnvOptions) {
+		o.UseTestDb = true
+	}
+}
+
+func getEnv(key string) string {
 	value := os.Getenv(key)
-	if len(value) == 0 {
-		if !canBeBlank && defaultValue == "" {
-			msg := fmt.Sprintf("No value for env key %s which cannot be blank.", key)
-			log.Fatal(msg)
-		}
-		return defaultValue
+	if value == "" {
+		slog.Error("No value for env key", slog.String("key", key))
+		return ""
 	}
 	return value
 }
 
-func getEnvWithDefault(key string, defaultValue string) string {
-	return getEnvWithDefaultAndBlankableFlag(key, defaultValue, false)
-}
+func LoadConfig(opts ...Option) (*Config, error) {
+	options := defaultEnvOptions
+	for _, opt := range opts {
+		opt(&options)
+	}
 
-func getEnv(key string) string {
-	return getEnvWithDefault(key, "")
-}
-
-func LoadConfig() *Config {
-	// default
-	envpath := "./.env"
-
+	envpath := findEnvFile()
 	if !IsBlank(envpath) {
 		err := godotenv.Load(envpath)
 		if err != nil {
-			msg := fmt.Sprintf("Could not load env file at path [%s]", envpath)
-			log.Fatal(msg)
+			slog.Warn("Could not load env file at given path", slog.String("path", envpath))
+			return nil, err
 		}
 	}
 
-	pgUrl := fmt.Sprintf("postgres://%s:%s@localhost:%s/%s", getEnv("PG_USER"), getEnv("PG_PASSWORD"), getEnv("PG_PORT"), getEnv("PG_DB"))
+	targetDb := getEnv("PG_DB")
+	if options.UseTestDb {
+		targetDb = getEnv("PG_DB_TEST")
+	}
+
+	pgUrl := fmt.Sprintf("postgres://%s:%s@localhost:%s/%s", getEnv("PG_USER"), getEnv("PG_PASSWORD"), getEnv("PG_PORT"), targetDb)
 	migDir := getEnv("MIGPATH")
 
-	// to do: delegate to substitutions helper
-	// mainSchema := getEnv("MAIN_SCHEMA")
-	// appUser := getEnv("APPUSER")
-	// appUserPwd := getEnv("APPUSER_PASSWORD")
-	// guestUser := getEnv("GUESTUSER")
-	// guestUserPwd := getEnv("GUESTUSER_PASSWORD")
+	// check for valid connection string
+	if !isPostgresURL(pgUrl) {
+		return nil, fmt.Errorf("invalid connection string: %s", pgUrl)
+	}
 
 	config := Config{
 		PgUrl:         pgUrl,
 		MigrationsDir: migDir,
 	}
 
-	return &config
+	return &config, nil
 }
 
-func HydrateSQLTemplate(templateStr string, config Config) string {
-	replacer := strings.NewReplacer(
-	// TODO: delegate to substitutions
-	// "${DB_NAME}", config.PgDb,
-	// "${MAIN_SCHEMA}", config.MainSchema,
-	// "${APPUSER}", config.AppUser,
-	// "${APPUSER_PASSWORD}", config.AppUserPwd,
-	)
-	migrationStr := replacer.Replace(templateStr)
+// findEnvFile looks for .env in the current directory and each parent, stopping
+// at the Go module root (directory containing go.mod). Tests run with CWD set
+// to the package dir, so "./.env" would miss the file at the repo root.
+func findEnvFile() string {
+	dir, err := os.Getwd()
+	if err != nil {
+		return ""
+	}
 
-	return migrationStr
+	for {
+		candidate := filepath.Join(dir, ".env")
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate
+		}
+
+		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+			return ""
+		}
+
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return ""
+		}
+		dir = parent
+	}
+}
+
+func isPostgresURL(s string) bool {
+	u, err := url.Parse(s)
+	if err != nil {
+		return false
+	}
+
+	return (u.Scheme == "postgres" || u.Scheme == "postgresql") &&
+		u.Host != "" &&
+		u.Path != ""
 }
