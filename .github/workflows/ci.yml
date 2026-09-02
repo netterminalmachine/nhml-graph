@@ -13,6 +13,9 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
+    # ncurses (clear in make test) needs TERM; Actions has neither a TTY nor TERM
+    env:
+      TERM: linux
     steps:
       - uses: actions/checkout@v4
 
