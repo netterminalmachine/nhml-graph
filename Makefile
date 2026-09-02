@@ -32,7 +32,6 @@ vet:
 check: fmt vet test
 
 test:
-		make clean
 		make build
 		clear
 		echo "\n=== 📜 TEST RESULTS ===\n"
