@@ -16,6 +16,21 @@ jobs:
     # ncurses (clear in make test) needs TERM; Actions has neither a TTY nor TERM
     env:
       TERM: linux
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        # Ensure runner waits for pg
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
 
@@ -29,3 +44,9 @@ jobs:
 
       - name: Verify and test
         run: make check
+        env:
+          PG_PORT: 5432
+          PG_USER: test_user
+          PG_PASSWORD: test_password
+          PG_DB_TEST: test_db
+          MIGPATH: ./migrations
