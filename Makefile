@@ -29,13 +29,29 @@ fmt:
 vet:
 	go vet ./...
 
-check: fmt vet test
+check: fmt vet
 
+# used by ci only
+test.ci:
+		make build
+		echo "\n=== 📜 TEST RESULTS ===\n"
+		gotestsum --format testname
+
+
+# for local dev / testing only the testscript tests need pg to be up and running
 test:
 		make build
 		clear
+		make pgup
 		echo "\n=== 📜 TEST RESULTS ===\n"
 		gotestsum --format testname
+
+# test a single txtar file e.g.: 'make test.txtar t=init'
+test.txtar:
+		make build
+		clear
+		make pgup
+		go test ./cmd/nhmlg/ -run 'TestCommands/$(t)' -v -count=1
 
 testcov:
 		go test -coverpkg=./... -coverprofile=coverage.out ./...
@@ -45,7 +61,7 @@ testcov:
 
 # Run a local test pg instance. Assumes you have docker and docker daemon is running
 pgup:
-		docker compose --env-file ./.env -f ./devtools/compose.yml up -d
+		docker compose --env-file ./.env -f ./devtools/compose.yml up -d --wait
 pgdown:
 		docker compose --env-file ./.env -f ./devtools/compose.yml down
 

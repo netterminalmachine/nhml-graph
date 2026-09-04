@@ -28,22 +28,28 @@ type Migration struct {
 func getFileContents(migrationFile string) (string, error) {
 	byteArr, errFile := os.ReadFile(migrationFile)
 	if errFile != nil {
-		return "", errFile
+		return "", fmt.Errorf("could not read migration file [%s]: %w", migrationFile, errFile)
 	}
 	return string(byteArr), nil
 }
 
 func allFiles(filesys fs.FS) (files []string, err error) {
 	startFromRoot := "."
-	if err := fs.WalkDir(filesys, startFromRoot, func(path string, d fs.DirEntry, err error) error {
+	err = fs.WalkDir(filesys, startFromRoot, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return fmt.Errorf("could not walk directory: %w", err)
+		}
+
 		if d.IsDir() {
-			return nil
+			return nil // skip
 		}
 
 		files = append(files, path)
 
 		return nil
-	}); err != nil {
+	})
+
+	if err != nil {
 		return nil, err
 	}
 
@@ -145,17 +151,17 @@ func RunMigrations(ctx context.Context, config *helpers.Config, pool *pgxpool.Po
 	fsys := os.DirFS(config.MigrationsDir)
 	files, errFindAllFiles := allFiles(fsys)
 	if errFindAllFiles != nil {
-		return fmt.Errorf("can't list migration files: %w", errFindAllFiles)
+		return fmt.Errorf("cannot list migration files: %w", errFindAllFiles)
 	}
 
 	// prepare for migrations
 	lastCommittedId, err := getLatestCommittedMigrationId(ctx, pool)
 	if err != nil {
-		return err
+		return fmt.Errorf("could not get latest committed migration id: %w", err)
 	}
 	migs, err := getPendingMigrations(files, lastCommittedId)
 	if err != nil {
-		return err
+		return fmt.Errorf("could not get pending migration files: %w", err)
 	}
 
 	if len(migs) == 0 {

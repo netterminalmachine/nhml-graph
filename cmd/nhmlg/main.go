@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"os"
 
@@ -49,6 +50,7 @@ func Main() int {
 
 	if err := cmd.Run(context.Background(), os.Args); err != nil {
 		slog.Error("error running app", "error", err)
+		fmt.Fprintf(os.Stderr, "error running app:\n%v\n", err)
 		return 1
 	}
 

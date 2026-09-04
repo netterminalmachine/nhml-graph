@@ -1,3 +1,58 @@
-# TODO
-exec echo hello
-stdout hello
+# correct defaults for later ref
+env CORRECT_MIGPATH=migrations
+env CORRECT_PG_USER=$PG_USER
+
+# Given migrate is invoked
+# And migration path is missing
+# Then the program fails
+env MIGPATH=
+! exec nhmlg:test migrate
+stderr 'cannot list migration files: could not walk directory: stat .: os: DirFS with empty root'
+stderr 'error running app'
+
+# Given migrate is invoked
+# And migration path is invalid
+# Then the program fails
+env MIGPATH=nonexistentdir
+! exec nhmlg:test migrate
+env MIGPATH=$CORRECT_MIGPATH
+stderr 'invalid migration directory: nonexistentdir'
+stderr 'error running app'
+
+# Given migrate is invoked
+# And pg url is invalid
+# Then the program fails
+env PG_USER=
+! exec nhmlg:test init
+env PG_USER=$CORRECT_PG_USER
+stderr 'failed to connect'
+stderr 'error running app'
+
+# Given migrate is invoked
+# But some migrations hold invalid sql
+# Then the program should fail
+exec nhmlg:test init
+! exec nhmlg:test migrate
+rm migrations/0001-bad.sql
+stderr 'error running app'
+
+# Given migrate is invoked
+# And all migration sql commands are valid
+# Then the program should exit successfully
+exec nhmlg:test init
+exec nhmlg:test migrate
+stdout 'Migrations applied successfully'
+
+# Given migrate is invoked
+# When all migrations have already ran (no pending migrations)
+# Then the program should exit successfully
+exec nhmlg:test init
+exec nhmlg:test migrate
+stdout 'No migrations to run.'
+
+-- migrations/0001-bad.sql --
+this is not valid sql;
+-- migrations/0002-first.sql --
+CREATE TABLE IF NOT EXISTS txtar_mig1 (id SERIAL PRIMARY KEY, name TEXT);
+-- migrations/0003-second.sql --
+ALTER TABLE txtar_mig1 ADD COLUMN IF NOT EXISTS extra_column text;

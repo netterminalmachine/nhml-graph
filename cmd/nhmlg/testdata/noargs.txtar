@@ -1,18 +1,24 @@
-# expect help page if ran with no commands
+# Given an invocation with no commands
+# Then the output should be the help page
 exec nhmlg:test
 cmp stdout usage.txt
 ! stderr .
 
-# expect failure if ran with unknown commands
+# Given an invocation with unknown commands
+# Then the program should fail
 ! exec nhmlg:test totalfoobar
 stderr 'No help topic'
 
-# help should work with --help
+# Given an invocation of the help command
+# when the argument is --help
+# Then the help text should display
 exec nhmlg:test --help
 cmp stdout usage.txt
 ! stderr .
 
-# help should work with 'h'
+# Given an invocation of the help command
+# when the argument is 'h'
+# Then the help text should display
 exec nhmlg:test h
 cmp stdout usage.txt
 ! stderr .

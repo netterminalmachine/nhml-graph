@@ -13,7 +13,6 @@ import (
 type Config struct {
 	PgUrl         string
 	MigrationsDir string
-	MainSchema    string
 }
 
 type EnvOptions struct {
@@ -67,6 +66,14 @@ func LoadConfig(opts ...Option) (*Config, error) {
 	// check for valid connection string
 	if !isPostgresURL(pgUrl) {
 		return nil, fmt.Errorf("invalid connection string: %s", pgUrl)
+	}
+
+	// check for valid migration directory
+	if IsBlank(migDir) {
+		return nil, fmt.Errorf("missing migration directory")
+	}
+	if _, err := os.Stat(migDir); err != nil {
+		return nil, fmt.Errorf("invalid migration directory: %s", migDir)
 	}
 
 	config := Config{
