@@ -1,0 +1,41 @@
+# Given an invocation with no commands
+# Then the output should be the help page
+exec nhmlg:test
+cmp stdout usage.txt
+! stderr .
+
+# Given an invocation with unknown commands
+# Then the program should fail
+! exec nhmlg:test totalfoobar
+stderr 'No help topic'
+
+# Given an invocation of the help command
+# when the argument is --help
+# Then the help text should display
+exec nhmlg:test --help
+cmp stdout usage.txt
+! stderr .
+
+# Given an invocation of the help command
+# when the argument is 'h'
+# Then the help text should display
+exec nhmlg:test h
+cmp stdout usage.txt
+! stderr .
+
+
+-- usage.txt --
+NAME:
+   nhmlg - nhml-graph (nhmlg) is a tiny, env-aware, forward-only, postgres migrations manager.
+
+USAGE:
+   nhmlg [global options] [command [command options]]
+
+COMMANDS:
+   init, i     Initialise the migrations table
+   create, c   Create a new migration
+   migrate, m  Apply all pending (un-applied) migrations
+   help, h     Shows a list of commands or help for one command
+
+GLOBAL OPTIONS:
+   --help, -h  show help

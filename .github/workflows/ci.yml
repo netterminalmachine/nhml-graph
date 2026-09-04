@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# else the gh token gets whatever the repo or org has as the default:
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    # ncurses (clear in make test) needs TERM; Actions has neither a TTY nor TERM
+    env:
+      TERM: linux
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        # Ensure runner waits for pg
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Install gotestsum
+        run: go install gotest.tools/gotestsum@latest
+
+      - name: Verify
+        run: make check
+
+      - name: test
+        run: make test.ci
+        env:
+          PG_PORT: 5432
+          PG_USER: test_user
+          PG_PASSWORD: test_password
+          MIGPATH: ./migrations
+          # app looks for both keys but we will only use the test db
+          PG_DB: test_db
+          PG_DB_TEST: test_db
