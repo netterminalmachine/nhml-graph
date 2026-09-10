@@ -7,7 +7,8 @@ env CORRECT_PG_USER=$PG_USER
 # Then the program fails
 env MIGPATH=
 ! exec nhmlg:test migrate
-stderr 'cannot list migration files: could not walk directory: stat .: os: DirFS with empty root'
+env MIGPATH=$CORRECT_MIGPATH
+stderr 'missing migration directory'
 stderr 'error running app'
 
 # Given migrate is invoked
@@ -25,7 +26,7 @@ stderr 'error running app'
 env PG_USER=
 ! exec nhmlg:test init
 env PG_USER=$CORRECT_PG_USER
-stderr 'failed to connect'
+stderr 'invalid connection string'
 stderr 'error running app'
 
 # Given migrate is invoked

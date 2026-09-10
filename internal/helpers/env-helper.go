@@ -117,7 +117,20 @@ func isPostgresURL(s string) bool {
 		return false
 	}
 
-	return (u.Scheme == "postgres" || u.Scheme == "postgresql") &&
+	correctSegments := (u.Scheme == "postgres" || u.Scheme == "postgresql") &&
 		u.Host != "" &&
-		u.Path != ""
+		u.Path != "" &&
+		u.User != nil
+
+	if !correctSegments {
+		return false
+	}
+
+	username := u.User.Username()
+	pwd, ok := u.User.Password()
+	if !ok || IsBlank(pwd) || IsBlank(username) {
+		return false
+	}
+
+	return true
 }
