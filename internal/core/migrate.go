@@ -5,7 +5,6 @@ import (
 	"crypto/sha1"
 	"fmt"
 	"io/fs"
-	"log"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -134,7 +133,7 @@ func getLatestCommittedMigrationId(ctx context.Context, pool *pgxpool.Pool) (int
 	if rows.Next() {
 		eScan := rows.Scan(&id, &name, &hash)
 		if eScan != nil {
-			return -1, fmt.Errorf("could not read returned rows: %w", err)
+			return -1, fmt.Errorf("could not read returned rows: %w", eScan)
 		}
 		slog.Info("last migration",
 			slog.Int("id", int(id)),
@@ -165,7 +164,7 @@ func RunMigrations(ctx context.Context, config *helpers.Config, pool *pgxpool.Po
 	}
 
 	if len(migs) == 0 {
-		log.Println("No migrations to run.")
+		slog.Info("No migrations to run.")
 		return nil
 	}
 

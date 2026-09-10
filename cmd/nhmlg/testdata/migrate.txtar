@@ -34,8 +34,8 @@ stderr 'error running app'
 # Then the program should fail
 exec nhmlg:test init
 ! exec nhmlg:test migrate
-rm migrations/0001-bad.sql
 stderr 'error running app'
+rm migrations/0001-bad.sql
 
 # Given migrate is invoked
 # And all migration sql commands are valid
