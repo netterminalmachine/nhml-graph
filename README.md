@@ -1,4 +1,6 @@
-# nano-migrate
+# nhml-graph
+
+This project is booted from a fork of my old [nano-migrate](https://github.com/lululeon/nano-migrate) project, which was just a vehicle for learning go.
 
 An env-aware, forward-only, postgres migrator for solo devs and tiny teams.
 
@@ -10,38 +12,34 @@ An env-aware, forward-only, postgres migrator for solo devs and tiny teams.
 
 (todo)
 
-## Quickstart
+## Quickstart for developers
 
-Supply these environment variables
+read the [CONTRIBUTING](./CONTRIBUTING.md) guide. TLDR: `make setup`, alias `nhmlg` to `./build/nhmlg`, and you're good to go.
 
-```
-# database connection string
-PG_URL
-
-# path to the folder that holds your migration files
-MIGPATH
-```
-
-Then run the following command to initialise the migrator
+## General Usage
+Run the following command to initialise the migrator
 
 ```sh
-nnmg init
+nhmlg init
+```
+You should see a message like 'Migrations table ready.'
+
+To create a brand new migration, simply use `nhmlg create` followed by a description of the schema change. e.g.:
+
+```sh
+nhmlg create initial foo table
 ```
 
-To create a brand new migration, simply use `nnmg create` followed by a description of the schema change. e.g.:
+:point_up: You can also just use 'c' as an alias for 'create'. 
 
-```txt
-nnmg create add foo column to things table
-```
-
-:point_up: This will create a new file in your migrations folder, named `nnnn-add-foo-column-to-things.sql`, or similar. It will be empty, because nano-migrate doesn't opine on how you write your migrations and it doesn't support down migrations anyway, so really... enter whatever sql you'd like to run! :-)
+This will create a new file in your migrations folder, named `nnnn-initial-foo-table.sql`, or similar. It will be empty, because nhml-graph doesn't opine on how you write your migrations and it doesn't support down migrations anyway, so really... enter whatever sql you'd like to run! :-)
 
 :warning: **Do not use transactions**, as your migration will be wrapped in a postgres transaction.
 
 To run all pending migrations that have not yet been applied to your database:
 
 ```sh
-nnmg migrate
+nhmlg migrate
 ```
 
 That's it!

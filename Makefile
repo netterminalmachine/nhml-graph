@@ -1,10 +1,14 @@
+ifneq (,$(wildcard ./.env)) # guard against hard stop on missing .env file (e.g. on bootstrap)
+include .env
+export
+endif
+
 # Use `make V=1` to print commands.
 $(V).SILENT:
 
 .PHONY: build
 
 # invoke make with VERSION=n.n.n
-# WARN: any vars here can be overridden by same-named env vars. DO NOT USE THESE FOR LOCAL DEV.
 TAG := -$(VERSION)
 ifeq ($(VERSION),)
 TAG :=
@@ -14,35 +18,69 @@ setup:
 		chmod +x ./devtools/setup.sh
 		./devtools/setup.sh
 
-# Run a local test pg instance. Assumes you have docker and docker daemon is running
-pgup:
-		docker compose --env-file ./.env -f ./devtools/compose.yml up -d
-pgdown:
-		docker compose --env-file ./.env -f ./devtools/compose.yml down
-
-
 # building and testing
 build:
-		go build -o ./build/nnmg$(TAG) nnmg.go
-test:
-		make clean
+		mkdir -p ./build
+		go build -o ./build/nhmlg$(TAG) ./cmd/nhmlg
+
+fmt:
+	gofmt -w .
+
+vet:
+	go vet ./...
+
+check: fmt vet
+
+# used by ci only
+test.ci:
 		make build
-		clear
 		echo "\n=== 📜 TEST RESULTS ===\n"
 		gotestsum --format testname
+
+
+# for local dev / testing only the testscript tests need pg to be up and running
+test:
+		make build
+		clear
+		make pgup
+		echo "\n=== 📜 TEST RESULTS ===\n"
+		gotestsum --format testname
+
+# test a single txtar file e.g.: 'make test.txtar t=init'
+test.txtar:
+		make build
+		clear
+		make pgup
+		go test ./cmd/nhmlg/ -run 'TestCommands/$(t)' -v -count=1
+
 testcov:
 		go test -coverpkg=./... -coverprofile=coverage.out ./...
 		clear
 		echo "\n=== 📜 TEST COVERAGE REPORT ===\n"
 		go tool cover -func=coverage.out
 
+# Run a local test pg instance. Assumes you have docker and docker daemon is running
+pgup:
+		docker compose --env-file ./.env -f ./devtools/compose.yml up -d --wait
+pgdown:
+		docker compose --env-file ./.env -f ./devtools/compose.yml down
+
+# connect to db / browse data
+connect:
+		docker compose --env-file ./.env -f ./devtools/compose.yml exec -it pg \
+		psql -U $(PG_USER) -d $(PG_DB)
 
 # see list of migrations
 ls:
-		ls -al $(HOME)/nn_datavol/migrations
-
+		echo "Migrations directory: $(HOME)/nhmlg_datavol/migrations"
+		ls -al $(HOME)/nhmlg_datavol/migrations
 
 clean:
 		rm ./build/*
+
+# recycle the local dev db volume (start afresh)
+recycle: 
+		./devtools/recycle-data-volume.sh
+
 uninstall:
-		rm $(GOPATH)/bin/nano-migrate
+		rm $(GOPATH)/bin/nhml-graph

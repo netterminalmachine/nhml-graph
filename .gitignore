@@ -23,3 +23,8 @@ build/
 
 # Go workspace file
 go.work
+
+# ticketizer files
+tickets.*
+REVIEW.md
+ROADMAP.md

@@ -1,0 +1,47 @@
+# correct defaults for later ref
+env CORRECT_MIGPATH=migrations
+env CORRECT_PG_USER=$PG_USER
+
+# Given an invocation of the init command
+# When migration path is empty
+# Then the program fails
+env MIGPATH=
+! exec nhmlg:test init
+env MIGPATH=$CORRECT_MIGPATH
+stdout 'No value for env key'
+stdout 'key=MIGPATH'
+stderr 'missing migration directory'
+stderr 'error running app'
+
+# Given an invocation of the init command
+# When migration path is invalid
+# Then the program fails
+env MIGPATH=xxxyyy
+! exec nhmlg:test init
+env MIGPATH=$CORRECT_MIGPATH
+stderr 'invalid migration directory'
+stderr 'error running app'
+
+# Given an invocation of the init command
+# When pg url is invalid
+# Then the program fails
+env PG_USER=
+! exec nhmlg:test init
+env PG_USER=$CORRECT_PG_USER
+stderr 'invalid connection string'
+stderr 'error running app'
+
+# Given an invocation of the init command
+# When all env vars are populated
+# Then the program should succeed
+exec nhmlg:test init
+stdout 'Migrations table ready.'
+
+# Given an invocation of the init command
+# When all env vars are populated
+# And the program is invoked again with 'i' alias
+# Then the program should succeed idempotently
+exec nhmlg:test i
+stdout 'Migrations table ready.'
+
+-- migrations/ --

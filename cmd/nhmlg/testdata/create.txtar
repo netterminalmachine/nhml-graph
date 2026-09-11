@@ -1,0 +1,94 @@
+# correct defaults for later ref
+env CORRECT_MIGPATH=migrations
+env CORRECT_PG_USER=$PG_USER
+
+# Given create is invoked
+# But the migration path is not provided
+# Then the program fails
+env MIGPATH=
+! exec nhmlg:test create add bar index
+env MIGPATH=$CORRECT_MIGPATH
+stderr 'missing migration directory'
+stderr 'error running app'
+
+# Given create is invoked
+# And correct args are passed
+#   But the migration folder does not exist
+# Then the program should fail
+env MIGPATH=nonexistent
+! exec nhmlg:test create add foo table for reports
+env MIGPATH=$CORRECT_MIGPATH
+stderr 'invalid migration directory: nonexistent'
+stderr 'error running app'
+
+# Given create is invoked
+# But the pg url is invalid
+# Then the program fails
+env PG_USER=
+! exec nhmlg:test c add table for neon colors
+env PG_USER=$CORRECT_PG_USER
+stderr 'invalid connection string'
+stderr 'error running app'
+
+# Given create is invoked
+# And correct args are passed
+#   But the migrations db has not been initialized
+# Then the program should fail
+! exec nhmlg:test create add foo table for reports
+stderr 'relation "public.migrations" does not exist'
+stderr 'error running app'
+
+# following tests need the initialized db
+exec nhmlg:test init
+
+# Given create is invoked
+# And we are able to fetch the last migration from db
+#   But the migration files are not writable
+# Then the program fails
+chmod 000 migrations
+! exec nhmlg:test create add bar index
+chmod 755 migrations
+stderr 'permission denied'
+stderr 'error running app'
+
+# Given create is invoked
+# And args are missing
+# Then the program should fail
+! exec nhmlg:test create
+stderr 'you must provide a name for your migration, which must be at least three words'
+stderr 'error running app'
+
+# Given create is invoked
+# And insufficient args are passed
+# Then the program should fail
+! exec nhmlg:test create add foo
+stderr 'you must provide a name for your migration, which must be at least three words'
+stderr 'error running app'
+
+# Given create is invoked
+# And correct args are passed
+#   But the db connection fails
+# Then the program should fail
+env PG_USER=nonexistent
+! exec nhmlg:test create add foo table for reports
+env PG_USER=$CORRECT_PG_USER
+stderr 'FATAL: password authentication failed for user'
+stderr 'error running app'
+
+# Given create is invoked
+# And correct args are passed
+# Then the program should succeed
+#   And create a migration file
+exec nhmlg:test create add foo table for reports
+exists migrations/0001-add-foo-table-for-reports.sql
+
+# Given create is invoked
+# And the short form 'c' alias is used
+# Then the program should succeed
+#   And create a migration file
+#   BUT with a stale ID (TODO: bugfix pending in issue 16)
+exec nhmlg:test c create new blah table for charts
+exists migrations/0001-create-new-blah-table-for-charts.sql
+
+# otherwise 'migrations' is de-trailing-slashed and treated as a file, not a dir:
+-- migrations/.gitkeep --
