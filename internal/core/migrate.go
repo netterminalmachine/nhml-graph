@@ -168,8 +168,8 @@ func RunMigrations(ctx context.Context, config *helpers.Config, pool *pgxpool.Po
 		return nil
 	}
 
-	err = asTransactionWithAutoRollback(ctx, pool, func(tx pgx.Tx) error {
-		for _, mig := range migs {
+	for _, mig := range migs {
+		err = asTransactionWithAutoRollback(ctx, pool, func(tx pgx.Tx) error {
 			content, err := getFileContents(fmt.Sprintf("%s/%s", config.MigrationsDir, mig.Filepath))
 			if err != nil {
 				return err
@@ -195,12 +195,15 @@ func RunMigrations(ctx context.Context, config *helpers.Config, pool *pgxpool.Po
 				return err
 			}
 			slog.Info("✅ migration ok", slog.String("fingerprint", fingerprint))
+
+			return nil
+		})
+		if err != nil {
+			return fmt.Errorf("migration %d failed: %w", mig.Id, err)
 		}
+	}
 
-		return nil
-	})
-
-	return err
+	return nil
 }
 
 func CreateMigration(
